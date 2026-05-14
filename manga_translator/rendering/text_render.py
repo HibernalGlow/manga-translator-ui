@@ -405,7 +405,10 @@ def _refresh_font_selection(state: FontState):
     if selection != state.font_selection:
         state.font_selection = selection
         state.qfonts.clear()
-        _clear_shape_caches(state)
+        # glyph_specs/glyphs/strokes 的 key 含字体路径，切换字体时无需清空，
+        # 保留缓存避免重复解析大字体文件的字形数据
+        state.measures.clear()
+        state.vertical.clear()
 
 
 def set_font(path: str):
@@ -563,7 +566,9 @@ def _glyph_spec_from_selection(cdpt: str, font_size: int) -> Optional[GlyphSpec]
         # Avoid raw_font.supportsCharacter() because it freezes on some fonts
         glyphs = raw_font.glyphIndexesForString(cdpt)
         glyph_id = glyphs[0] if glyphs else 0
-        if glyph_id > 0 and _glyph_renderable(raw_font, glyph_id, cdpt):
+        # glyph_id > 0 足以判断字体支持该字符，跳过 _glyph_renderable 避免
+        # 对复杂字形调 pathForGlyph 导致首次渲染极慢
+        if glyph_id > 0:
             return GlyphSpec(raw_font, int(glyph_id), ('font-path', _normalize_font_path(path)))
         # Space character might legitimately have glyph_id == 0 or map to advance
         if glyph_id == 0 and cdpt.isspace() and _glyph_has_advance(raw_font, glyph_id):
@@ -660,7 +665,14 @@ def _glyph_stroke_alpha(cdpt: str, font_size: int, stroke_ratio: float) -> np.nd
     cached = _cache_get(state.strokes, key)
     if cached is not None:
         return cached
-    alpha = _rasterize_path(_stroke_path(spec.raw_font.pathForGlyph(spec.glyph_id), max(int(stroke_ratio * font_size), 1)))[0]
+    # 用形态学膨胀替代 QPainterPathStroker，对复杂字形速度快数百倍
+    raster = _glyph_raster(cdpt, font_size)
+    if raster.alpha.size == 0:
+        return _cache_put(state.strokes, key, np.zeros((0, 0), dtype=np.uint8), _STROKE_CACHE_MAX)
+    stroke_px = max(int(stroke_ratio * font_size), 1)
+    kernel_size = stroke_px * 2 + 1
+    kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (kernel_size, kernel_size))
+    alpha = cv2.dilate(raster.alpha, kernel)
     return _cache_put(state.strokes, key, alpha, _STROKE_CACHE_MAX)
 
 
@@ -802,8 +814,12 @@ def _line_surface(line_text: str, font_size: int, border_size: int, stroke_ratio
     if fill_alpha.size == 0:
         return None
     if border_size > 0:
-        border_alpha, border_left, border_top = _rasterize_path(_stroke_path(path, max(int(stroke_ratio * font_size), 1)))
-        left, top = min(fill_left, border_left), min(fill_top, border_top)
+        stroke_px = max(int(stroke_ratio * font_size), 1)
+        kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (stroke_px * 2 + 1, stroke_px * 2 + 1))
+        border_alpha = cv2.dilate(fill_alpha, kernel)
+        border_left, border_top = fill_left - stroke_px, fill_top - stroke_px
+        left = min(fill_left, border_left)
+        top = min(fill_top, border_top)
         right = max(fill_left + fill_alpha.shape[1], border_left + border_alpha.shape[1])
         bottom = max(fill_top + fill_alpha.shape[0], border_top + border_alpha.shape[0])
         text_canvas = np.zeros((bottom - top, right - left), dtype=np.uint8)

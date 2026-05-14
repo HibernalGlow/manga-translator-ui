@@ -2489,8 +2489,12 @@ def render(
         return img
 
     # 在局部区域进行变换
-    # 关键修复：先做 Alpha 预乘，避免 warpPerspective 的 Lanczos 插值把边缘
-    # 像素和透明黑 (0,0,0,0) 混合成灰/黑色晕边。
+    # 关键修复 1：先做 Alpha 预乘，避免 warpPerspective 的插值把边缘像素和
+    # 透明黑 (0,0,0,0) 混合成灰/黑色晕边。
+    # 关键修复 2：使用 INTER_LINEAR 而非 INTER_LANCZOS4。Lanczos4 的 sinc 负
+    # lobe 在预乘空间会把"远处的透明黑"按负权重减出来，且 RGB 与 alpha 振铃
+    # 量不成比例 —— 反预乘还原后，描边外缘出现 ~5% 的灰（约 #f9f9f9）。
+    # 双线性无负 lobe，描边边缘保持纯白；漫画文字大字号缩放下肉眼看不出锐度差异。
     if box.shape[2] == 4:
         box_pm = box.copy()
         a_f = box_pm[:, :, 3].astype(np.float32) / 255.0
@@ -2499,7 +2503,7 @@ def render(
     else:
         box_pm = box
 
-    rgba_region = cv2.warpPerspective(box_pm, M_local, (local_w, local_h), flags=cv2.INTER_LANCZOS4, borderMode=cv2.BORDER_CONSTANT, borderValue=0)
+    rgba_region = cv2.warpPerspective(box_pm, M_local, (local_w, local_h), flags=cv2.INTER_LINEAR, borderMode=cv2.BORDER_CONSTANT, borderValue=0)
 
     # 计算在局部区域中的有效范围
     local_text_x = x_adj - local_x1
