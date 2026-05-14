@@ -170,7 +170,8 @@ class AccountService:
         
         # 允许更新的字段
         allowed_fields = {
-            'role', 'permissions', 'is_active', 'must_change_password'
+            'role', 'group', 'permissions', 'is_active', 'must_change_password',
+            'parameter_config', 'default_preset_id'
         }
         
         # 验证更新字段
@@ -197,6 +198,15 @@ class AccountService:
         
         if 'must_change_password' in updates:
             account.must_change_password = bool(updates['must_change_password'])
+
+        if 'group' in updates:
+            account.group = str(updates['group'])
+
+        if 'parameter_config' in updates:
+            account.parameter_config = updates['parameter_config']
+
+        if 'default_preset_id' in updates:
+            account.default_preset_id = updates['default_preset_id']
         
         # 持久化
         self._save_accounts()

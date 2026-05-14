@@ -30,10 +30,51 @@ SERVER_HIDDEN_RENDERER_OPTIONS = set()
 SERVER_HIDDEN_COLORIZER_OPTIONS = set()
 SERVER_HIDDEN_TRANSLATOR_OPTIONS = set()
 SERVER_HIDDEN_CONFIG_KEYS = {
+    # 服务器端内部参数
     "use_custom_api_params",
-    "ocr.ai_ocr_concurrency",
-    "render.ai_renderer_concurrency",
-    "colorizer.ai_colorizer_history_pages",
+    # Qt UI 专属参数，Web 端全体禁用
+    "cli.replace_translation",
+    "render.enable_template_alignment",
+    "render.paste_mask_dilation_pixels",
+    # 服务器端控制，用户端不应暴露
+    "cli.batch_size",
+    "cli.batch_concurrent",
+    "cli.use_gpu",
+    # upscale
+    "upscale.realcugan_model",
+    # CLI 配置隐藏
+    "cli.format",
+    "cli.save_quality",
+    "cli.overwrite",
+    "cli.skip_no_text",
+    "cli.save_text",
+    "cli.load_text",
+    "cli.translate_json_only",
+    "cli.template",
+    "cli.ignore_errors",
+    "cli.verbose",
+    "cli.psd_script_only",
+    "cli.generate_and_export",
+    "cli.colorize_only",
+    "cli.upscale_only",
+    "cli.inpaint_only",
+    # 翻译器高级配置
+    "translator.enable_post_translation_check",
+    "translator.post_check_max_retry_attempts",
+    "translator.post_check_repetition_threshold",
+    "translator.post_check_target_lang_threshold",
+    "translator.translator_chain",
+    "translator.selective_translation",
+    "translator.skip_lang",
+    # 渲染
+    "render.gimp_font",
+    # PSD 相关（Qt UI / Photoshop 专属）
+    "cli.export_editable_psd",
+    "cli.psd_font",
+    # Qt UI 专属 - 输出到原图目录
+    "cli.save_to_source_dir",
+    # Qt UI 专属 - 导入固定YOLO框
+    "detector.import_yolo_labels",
 }
 
 WEB_API_ENV_KEYS = {

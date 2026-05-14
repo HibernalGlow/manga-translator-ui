@@ -56,7 +56,6 @@ DEFAULT_ADMIN_SETTINGS = {
         'cli.template',
         # 'cli.attempts',  # 不再隐藏，让用户可以设置重试次数
         'cli.ignore_errors',
-        'cli.context_size',
         'cli.batch_size',
         'cli.batch_concurrent',
         'cli.use_gpu',
@@ -79,10 +78,8 @@ DEFAULT_ADMIN_SETTINGS = {
         'translator.selective_translation',
         'translator.skip_lang',
          'use_custom_api_params',  # 仅用于服务器端，Web UI 用户端不显示
-         'ocr.ai_ocr_concurrency',
-         'render.ai_renderer_concurrency',
-         'colorizer.ai_colorizer_history_pages',
          'render.gimp_font',
+         'detector.import_yolo_labels',  # Qt UI 专属 - 导入固定YOLO框
       ],
     'readonly_keys': [],
     'default_values': {},
@@ -142,8 +139,24 @@ def load_admin_settings() -> dict:
                 loaded_settings = json.load(f)
                 print(f"[INFO] Loaded admin settings from: {ADMIN_CONFIG_PATH}")
                 # 合并默认配置和加载的配置
-                settings = DEFAULT_ADMIN_SETTINGS.copy()
-                settings.update(loaded_settings)
+                import copy
+                settings = copy.deepcopy(DEFAULT_ADMIN_SETTINGS)
+                for key, value in loaded_settings.items():
+                    if key in settings and isinstance(settings[key], list) and isinstance(value, list):
+                        # 列表类型：以默认值为基础，追加文件中有但默认没有的项
+                        default_set = set(settings[key])
+                        merged = list(settings[key])
+                        for item in value:
+                            if item not in default_set:
+                                merged.append(item)
+                        settings[key] = merged
+                    elif key in settings and isinstance(settings[key], dict) and isinstance(value, dict):
+                        # 字典类型：深度合并
+                        merged_dict = copy.deepcopy(settings[key])
+                        merged_dict.update(value)
+                        settings[key] = merged_dict
+                    else:
+                        settings[key] = value
                 
                 # 如果配置文件中没有密码，尝试从环境变量读取
                 if not settings.get('admin_password'):
