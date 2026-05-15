@@ -3835,10 +3835,11 @@ class TranslationWorker(QObject):
                     except Exception as e:
                         self._log_error(f"❌ [{current_num}/{total_files}] 错误：{os.path.basename(file_path)} - {e}")
                         progress_context["failed_count"] += 1
+                        self._copy_original_on_failure(file_path, save_info)
                         self.file_processed.emit({'success': False, 'original_path': file_path, 'error': str(e)})
                         emit_eta_progress(current_num, total_original_count, f"处理失败: {os.path.basename(file_path)}")
-                        # 抛出异常，终止整个翻译流程
-                        raise
+                        if not self.config_dict.get('cli', {}).get('ignore_errors', False):
+                            raise
 
                 self._log_info(f"✅ 顺序翻译完成：成功 {success_count}/{total_files} 张")
                 self._log_info(f"💾 文件已保存到：{self.output_folder}")
