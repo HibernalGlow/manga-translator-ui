@@ -183,6 +183,26 @@ class BRMarkersValidationException(Exception):
         )
 
 
+def normalize_smart_quotes(text: str) -> str:
+    if not text:
+        return text
+    _QUOTE_MAP = str.maketrans({
+        "\u201c": '"',
+        "\u201d": '"',
+        "\u201e": '"',
+        "\u201f": '"',
+        "\u00ab": '"',
+        "\u00bb": '"',
+        "\uff02": '"',
+        "\u2018": "'",
+        "\u2019": "'",
+        "\u201a": "'",
+        "\u201b": "'",
+        "\u2039": "'",
+        "\u203a": "'",
+        "\uff07": "'",
+    })
+    return text.translate(_QUOTE_MAP)
 
 
 # ============================================================================
@@ -1703,7 +1723,7 @@ class CommonTranslator(InfererModule):
             return []
 
         try:
-            data = json.loads(payload)
+            data = json.loads(normalize_smart_quotes(payload))
         except json.JSONDecodeError:
             return []
 
@@ -2487,7 +2507,7 @@ class CommonTranslator(InfererModule):
         source_texts: Optional[List[str]] = None,
     ) -> None:
         try:
-            parsed = json.loads(obj_text)
+            parsed = json.loads(normalize_smart_quotes(obj_text))
         except Exception:
             return
 
@@ -2948,6 +2968,8 @@ def extract_json_payload_from_mixed_text(text: str) -> Tuple[str, bool]:
     raw = str(text).strip()
     if not raw:
         return raw, False
+
+    raw = normalize_smart_quotes(raw)
 
     def _extract_balanced_json_candidates(src: str) -> List[str]:
         candidates = []
