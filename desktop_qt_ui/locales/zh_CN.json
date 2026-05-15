@@ -248,6 +248,8 @@
   "label_attempts": "重试次数",
   "label_max_requests_per_minute": "每分钟最大请求数",
   "label_ignore_errors": "忽略错误",
+  "label_max_missing_translations": "允许缺失翻译数",
+  "desc_cli_max_missing_translations": "翻译数量不匹配时允许的最大缺失条数，缺失部分用原文填充（0=严格匹配，不允许缺失）",
   "label_use_gpu": "使用 GPU",
   "label_disable_onnx_gpu": "禁用 ONNX GPU 加速",
   "label_context_size": "上下文页数",

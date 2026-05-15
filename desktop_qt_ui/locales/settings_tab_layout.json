@@ -12,6 +12,7 @@
         "app.theme",
         "cli.verbose",
         "cli.ignore_errors",
+        "cli.max_missing_translations",
         "cli.use_gpu",
         "cli.disable_onnx_gpu",
         "cli.format",

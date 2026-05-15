@@ -135,6 +135,7 @@
     "export_editable_psd": false,
     "psd_font": null,
     "psd_script_only": false,
-    "replace_translation": false
+    "replace_translation": false,
+    "max_missing_translations": 3
   }
 }

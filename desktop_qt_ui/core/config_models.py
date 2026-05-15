@@ -140,6 +140,7 @@ class CliSettings(BaseModel):
     psd_font: Optional[str] = None  # PSD导出使用的字体名称 (PostScript名称)
     psd_script_only: bool = False  # 仅生成JSX脚本而不执行Photoshop
     replace_translation: bool = False  # 替换翻译模式：将一张图的翻译应用到另一张生肉图上
+    max_missing_translations: int = 3  # 允许的最大缺失翻译数量（0=严格匹配）
 
 
 _LEGACY_THEME_MIGRATIONS = {

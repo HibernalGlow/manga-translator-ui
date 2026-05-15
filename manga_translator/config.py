@@ -401,6 +401,8 @@ class CliConfig(BaseModel):
     """Save extracted text"""
     ignore_errors: bool = False
     """Ignore errors and continue processing"""
+    max_missing_translations: int = 3
+    """Maximum allowed missing translations before retrying (0 = strict, require exact match)"""
     export_editable_psd: bool = False
     """Export editable PSD file with layers (requires Photoshop)"""
     psd_font: Optional[str] = None

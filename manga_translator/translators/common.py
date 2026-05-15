@@ -1403,6 +1403,7 @@ class CommonTranslator(InfererModule):
         self._max_total_attempts = -1  # 全局最大尝试次数
         self._cancel_check_callback = None  # 取消检查回调
         self._custom_api_params = {}  # 存储自定义API参数
+        self.max_missing_translations = 3
         self._enable_streaming = True
         self._stream_inline_last_len = 0
         self._stream_inline_buffer = ""
@@ -2124,8 +2125,9 @@ class CommonTranslator(InfererModule):
         Returns:
             (is_valid, error_message)
         """
-        # 1. 检查数量匹配 (这是必须的，不能跳过)
-        if len(translations) != len(queries):
+        # 1. 检查数量匹配 (允许缺失在阈值内)
+        missing = len(queries) - len(translations)
+        if missing < 0 or missing > self.max_missing_translations:
             return False, f"Translation count mismatch: expected {len(queries)}, got {len(translations)}"
 
         # 2. 检查空翻译（原文不为空但译文为空）- 已禁用
@@ -2279,6 +2281,8 @@ class CommonTranslator(InfererModule):
         )
         self.attempts = get_retry_attempts_from_config(config, logger=self.logger, fallback=-1)
         self._max_total_attempts = self._resolve_max_total_attempts()
+        cli_config = getattr(config, 'cli', None) if config else None
+        self.max_missing_translations = getattr(cli_config, 'max_missing_translations', 3) if cli_config else 3
 
     def _emit_stream_lines(self, prefix: str, text: str, width: int = 100) -> None:
         """将流式增量按固定宽度换行输出，避免命令行单行过长被截断。"""
@@ -3260,7 +3264,8 @@ def parse_hq_response(result_text: str) -> Tuple[List[str], List[Dict[str, str]]
     logger.warning("JSON parsing failed, falling back to Regex extraction")
     
     # 3.1 尝试提取带ID的对象: {"id": 1, "translation": "..."}
-    object_pattern = r'\{\s*"id"\s*:\s*(\d+)\s*,\s*"translation"\s*:\s*"([^"]*(?:\\.[^"]*)*)"\s*\}'
+    # 注意：LLM有时会遗漏最后一个对象的闭合}，所以\}设为可选
+    object_pattern = r'\{\s*"id"\s*:\s*(\d+)\s*,\s*"translation"\s*:\s*"([^"]*(?:\\.[^"]*)*)"\s*\}?'
     matches = re.findall(object_pattern, result_text)
     
     if matches:

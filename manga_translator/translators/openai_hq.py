@@ -456,8 +456,9 @@ class OpenAIHighQualityTranslator(CommonTranslator):
                         else:
                             self.logger.warning("Extracted new terms but prompt path not found in context.")
                     
-                    # Strict validation: must match input count
-                    if len(translations) != len(texts):
+                    # Strict validation: must match input count (with tolerance)
+                    missing_count = len(texts) - len(translations)
+                    if missing_count < 0 or missing_count > self.max_missing_translations:
                         retry_attempt += 1
                         retry_reason = f"Translation count mismatch: expected {len(texts)}, got {len(translations)}"
                         log_attempt = f"{attempt}/{max_retries}" if not is_infinite else f"Attempt {attempt}"
@@ -476,6 +477,10 @@ class OpenAIHighQualityTranslator(CommonTranslator):
                         self._setup_client(force_recreate=True)
                         await self._sleep_with_cancel_polling(2)
                         continue
+                    elif missing_count > 0:
+                        self.logger.warning(f"翻译缺失 {missing_count} 条（允许范围内 ≤{self.max_missing_translations}），用原文填充缺失项")
+                        while len(translations) < len(texts):
+                            translations.append(texts[len(translations)])
 
                     # 质量验证：检查空翻译、合并翻译、可疑符号等
                     is_valid, error_msg = self._validate_translation_quality(texts, translations)
