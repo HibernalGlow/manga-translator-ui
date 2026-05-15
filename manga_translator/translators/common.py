@@ -3015,7 +3015,12 @@ def extract_json_payload_from_mixed_text(text: str) -> Tuple[str, bool]:
                 json5.loads(candidate)
                 return True
             except Exception:
-                return False
+                try:
+                    import json_repair
+                    json_repair.loads(candidate)
+                    return True
+                except Exception:
+                    return False
 
     candidates: List[str] = []
 
