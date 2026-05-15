@@ -34,6 +34,7 @@ huggingface-hub==0.34.4
 ijson==3.4.0
 jaconv==0.3.4
 json5==0.9.28
+json-repair>=0.59.0
 kornia==0.8.1
 langcodes==3.5.0
 loguru==0.7.3

@@ -3193,6 +3193,13 @@ def parse_hq_response(result_text: str) -> Tuple[List[str], List[Dict[str, str]]
             except (ImportError, Exception):
                 parsed = None
         if parsed is None:
+            try:
+                import json_repair
+                parsed = json_repair.loads(candidate_text)
+                logger.info("Using json_repair for parsing")
+            except (ImportError, Exception):
+                parsed = None
+        if parsed is None:
             return None
 
         out_trans = []
