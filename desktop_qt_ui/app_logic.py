@@ -2774,7 +2774,21 @@ class TranslationWorker(QObject):
         if failed_count > 0:
             parts.append(f"已失败 {failed_count} 张")
         return " | ".join(parts)
-    
+
+    def _copy_original_on_failure(self, file_path: str, save_info: dict) -> None:
+        if not save_info or not file_path or not os.path.isfile(file_path):
+            return
+        try:
+            dst = self._calculate_output_path(file_path, save_info)
+            if os.path.exists(dst):
+                return
+            os.makedirs(os.path.dirname(dst), exist_ok=True)
+            import shutil
+            shutil.copy2(file_path, dst)
+            self._log_info(f"📋 已复制原图（翻译失败）：{os.path.basename(dst)}")
+        except Exception as e:
+            self.logger.warning(f"Failed to copy original image on failure: {e}")
+
     def _calculate_output_path(self, image_path: str, save_info: dict) -> str:
         """
         计算输出文件的完整路径（用于预检查文件是否存在）
@@ -3813,6 +3827,7 @@ class TranslationWorker(QObject):
                         else:
                             error_msg = getattr(ctx, 'translation_error', 'Translation returned no result') if ctx else 'Translation failed'
                             progress_context["failed_count"] += 1
+                            self._copy_original_on_failure(file_path, save_info)
                             self.file_processed.emit({'success': False, 'original_path': file_path, 'error': error_msg})
                             self._log_warning(f"❌ [{current_num}/{total_files}] 失败：{os.path.basename(file_path)}")
                             emit_eta_progress(current_num, total_original_count, f"处理失败: {os.path.basename(file_path)}")

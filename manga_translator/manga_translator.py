@@ -647,7 +647,23 @@ class MangaTranslator:
         except Exception as e:
             logger.error(f"Error saving image to {output_path}: {e}")
             return False
-    
+
+    def _copy_original_on_failure(self, ctx: Context, save_info: dict, mode_label: str = "BATCH") -> None:
+        if not save_info or not getattr(ctx, 'image_name', None):
+            return
+        try:
+            src = ctx.image_name
+            if not os.path.isfile(src):
+                return
+            dst = self._calculate_output_path(src, save_info)
+            if os.path.exists(dst):
+                return
+            os.makedirs(os.path.dirname(dst), exist_ok=True)
+            shutil.copy2(src, dst)
+            logger.info(f"  -> 📋 [{mode_label}] Copied original (translation failed): {os.path.basename(dst)}")
+        except Exception as e:
+            logger.warning(f"Failed to copy original image on failure: {e}")
+
     def _save_and_cleanup_context(self, ctx: Context, save_info: dict, config: Config = None, mode_label: str = "BATCH") -> bool:
         """
         统一的保存和清理方法：保存翻译结果、导出PSD并清理内存
@@ -3831,6 +3847,7 @@ class MangaTranslator:
 
                     for ctx, config in translated_contexts:
                         if getattr(ctx, 'translation_error', None):
+                            self._copy_original_on_failure(ctx, save_info, "BATCH")
                             results.append(ctx)
                             await report_completed_image_progress()
                             continue
@@ -3905,6 +3922,7 @@ class MangaTranslator:
                     logger.info("Template+SaveText mode: Skipping rendering, exporting original text only.")
                     for ctx, config in translated_contexts:
                         if getattr(ctx, 'translation_error', None):
+                            self._copy_original_on_failure(ctx, save_info, "BATCH")
                             results.append(ctx)
                             await report_completed_image_progress()
                             continue
@@ -3933,6 +3951,7 @@ class MangaTranslator:
                     logger.info("'Generate and Export' mode enabled. Skipping rendering.")
                     for ctx, config in translated_contexts:
                         if getattr(ctx, 'translation_error', None):
+                            self._copy_original_on_failure(ctx, save_info, "BATCH")
                             results.append(ctx)
                             await report_completed_image_progress()
                             continue
@@ -3962,6 +3981,7 @@ class MangaTranslator:
                     await asyncio.sleep(0)  # 检查是否被取消
                     self._check_cancelled()  # 检查取消标志
                     if getattr(ctx, 'translation_error', None):
+                        self._copy_original_on_failure(ctx, save_info, "BATCH")
                         results.append(ctx)
                         await report_completed_image_progress()
                         continue
@@ -5780,6 +5800,7 @@ class MangaTranslator:
                 logger.info("'Generate and Export' mode enabled. Skipping rendering.")
                 for ctx, config in preprocessed_contexts:
                     if getattr(ctx, 'translation_error', None):
+                        self._copy_original_on_failure(ctx, save_info, "HQ")
                         results.append(ctx)
                         await report_completed_image_progress()
                         continue
@@ -5806,6 +5827,7 @@ class MangaTranslator:
                 await asyncio.sleep(0)
                 self._check_cancelled()  # 检查取消标志
                 if getattr(ctx, 'translation_error', None):
+                    self._copy_original_on_failure(ctx, save_info, "HQ")
                     results.append(ctx)
                     await report_completed_image_progress()
                     continue
