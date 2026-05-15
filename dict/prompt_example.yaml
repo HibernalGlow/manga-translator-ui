@@ -1,23 +1,84 @@
-# 自定义翻译提示词模板
-# Custom translation prompt template
-#
-# 使用方法：
-#   1. 复制此文件并重命名（例如 my_manga_prompt.yaml）
-#   2. 编辑下面的 system_prompt 和 glossary 部分
-#   3. 在翻译设置中选择此文件
-#
-# 提示词中可以使用 {{{target_lang}}} 占位符，会被替换为目标语言名称
-
-# 自定义系统提示词（留空则仅使用内置的基础提示词，此处内容会叠加在基础提示词之前）
-system_prompt: ""
-
-# 术语表（确保角色名、地名等翻译一致）
+system_prompt: ''
 glossary:
   Person:
-    - original: ""
-      translation: ""
+  - original: ''
+    translation: ''
+  - original: あるるも
+    translation: 阿尔鲁莫
+  - original: 只野まぐ
+    translation: 只野真具
+  - original: なるせ
+    translation: 成濑
+  - original: イシマリユウヤ
+    translation: 石马里优也
+  - original: もんちゃんrev3
+    translation: 萌酱rev3
+  - original: うさぎ兎さめ
+    translation: 兔兔鲨
+  - original: ヒナ
+    translation: 日奈
+  - original: カリン
+    translation: 花林
+  - original: カンナ
+    translation: 加奈
+  - original: ノゾミ
+    translation: 望美
+  - original: ヒカリ
+    translation: 光
+  - original: イズナ
+    translation: 伊津奈
+  - original: 主殿
+    translation: 主公
+  - original: ミチル
+    translation: 美知留
+  - original: で子
+    translation: で子
+  - original: ユカリ
+    translation: 雪香
+  - original: キキ
+    translation: 琪琪
+  - original: ココナ
+    translation: 可可娜
+  - original: ユウカ
+    translation: 优香
+  - original: コハル
+    translation: 小春
+  - original: ネル
+    translation: 涅露
+  - original: モモイ
+    translation: 桃井
+  - original: ダル
+    translation: 达鲁
+  - original: シャモナベ
+    translation: シャモナベ
+  - original: セイア
+    translation: 圣亚
+  - original: 潮汐きよし
+    translation: 潮汐きよし
+  - original: レイサ
+    translation: 蕾莎
+  - original: サキ
+    translation: 沙希
   Location: []
-  Org: []
+  Org:
+  - original: 京のごはん
+    translation: 京都的饭
+  - original: Portio
+    translation: Portio
+  - original: シャーレ
+    translation: 夏莱
+  - original: 無道債務会議
+    translation: 无道债务会议
+  - original: コメリット販売
+    translation: Comerit销售
+  - original: 玄龍門
+    translation: 玄龙门
+  - original: ゲーム開発部
+    translation: 游戏开发部
+  - original: SRT
+    translation: SRT
   Item: []
   Skill: []
-  Creature: []
+  Creature:
+  - original: 無双恐皇ガラムタ
+    translation: 无双恐皇加拉姆塔

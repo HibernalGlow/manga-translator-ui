@@ -1,16 +1,4 @@
 {
-  "app": {
-    "last_open_dir": ".",
-    "last_output_path": "",
-    "favorite_folders": null,
-    "theme": "light",
-    "theme_user_preference": "light",
-    "ui_language": "auto",
-    "current_preset": "默认",
-    "unload_models_after_translation": false,
-    "saved_colors": null,
-    "saved_style_presets": null
-  },
   "filter_text_enabled": false,
   "kernel_size": 3,
   "mask_dilation_offset": 50,
@@ -30,7 +18,7 @@
   },
   "ocr": {
     "ocr": "48px",
-    "use_hybrid_ocr": false,
+    "use_hybrid_ocr": true,
     "secondary_ocr": "mocr",
     "min_text_length": 0,
     "ignore_bubble": 0.0,
@@ -58,7 +46,7 @@
     "use_yolo_obb": true,
     "yolo_obb_conf": 0.3,
     "yolo_obb_overlap_threshold": 0.1,
-    "min_box_area_ratio": 0
+    "min_box_area_ratio": 0.0
   },
   "inpainter": {
     "inpainter": "lama_mpe",
@@ -76,7 +64,7 @@
     "direction": "auto",
     "uppercase": false,
     "lowercase": false,
-    "font_path": "fonts/Arial-Unicode-Regular.ttf",
+    "font_path": "LXGWWenKai-Regular.ttf",
     "no_hyphenation": false,
     "bubble_layout_english": false,
     "font_color": null,
@@ -88,7 +76,7 @@
     "layout_mode": "balloon_fill",
     "max_font_size": 0,
     "font_scale_ratio": 1.0,
-    "center_text_in_bubble": false,
+    "center_text_in_bubble": true,
     "optimize_line_breaks": false,
     "check_br_and_retry": false,
     "strict_smart_scaling": false,
@@ -111,7 +99,6 @@
     "ai_colorizer_history_pages": 0
   },
   "cli": {
-    "verbose": false,
     "attempts": 3,
     "ignore_errors": false,
     "use_gpu": true,
