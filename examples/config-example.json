@@ -124,7 +124,7 @@
     "load_text": false,
     "translate_json_only": false,
     "template": false,
-    "save_quality": 80,
+    "save_quality": 75,
     "batch_size": 1,
     "batch_concurrent": false,
     "generate_and_export": false,

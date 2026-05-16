@@ -20,7 +20,7 @@ from PyQt6.QtWidgets import (
 from manga_translator.utils import open_pil_image
 
 # 全局线程池，用于异步加载缩略图
-_thumbnail_executor = ThreadPoolExecutor(max_workers=4, thread_name_prefix="thumbnail_loader")
+_thumbnail_executor = ThreadPoolExecutor(max_workers=8, thread_name_prefix="thumbnail_loader")
 
 
 def shutdown_thumbnail_executor():
@@ -83,7 +83,7 @@ class FileItemWidget(QWidget):
     remove_requested = pyqtSignal(str)
     
     # MAX Cache Size
-    MAX_CACHE_SIZE = 200
+    MAX_CACHE_SIZE = 500
     # 类级别的缩略图缓存 (LRU)
     _thumbnail_cache: 'OrderedDict[str, QPixmap]' = OrderedDict()
     # 类级别的信号对象（所有实例共享）
@@ -404,10 +404,11 @@ class FileListView(QTreeWidget):
     def _on_folders_scanned(self, folder_data_list):
         """文件夹扫描完成后的回调（在主线程中创建UI元素）"""
         try:
+            self.setUpdatesEnabled(False)
             for folder_path, folder_data in folder_data_list:
                 self._add_folder_tree_from_data(folder_path, folder_data)
         finally:
-            # 恢复光标
+            self.setUpdatesEnabled(True)
             QApplication.restoreOverrideCursor()
     
     def _add_folder_tree_from_data(self, folder_path: str, folder_data: dict):
@@ -415,7 +416,6 @@ class FileListView(QTreeWidget):
         if folder_path in self.folder_nodes:
             return
         
-        # 创建顶层文件夹节点
         folder_item = QTreeWidgetItem(self)
         folder_item.setData(0, Qt.ItemDataRole.UserRole, folder_path)
         
@@ -426,16 +426,22 @@ class FileListView(QTreeWidget):
         self.setItemWidget(folder_item, 0, folder_widget)
         self.folder_nodes[folder_path] = folder_item
         
-        # 递归添加子文件夹和文件
         self._populate_folder_tree_from_data(folder_item, folder_path, folder_data)
         
-        # 更新文件数量
-        file_count = self._count_files_in_tree(folder_item)
+        file_count = self._count_files_in_data(folder_data)
         folder_widget.update_file_count(file_count)
+    
+    def _count_files_in_data(self, folder_data: dict) -> int:
+        """从扫描数据直接计算文件数（避免遍历UI树和I/O调用）"""
+        count = len(folder_data.get('files', []))
+        for subdir in folder_data.get('subdirs', []):
+            subdir_data = folder_data.get('subdir_data', {}).get(subdir)
+            if subdir_data:
+                count += self._count_files_in_data(subdir_data)
+        return count
     
     def _populate_folder_tree_from_data(self, parent_item: QTreeWidgetItem, folder_path: str, folder_data: dict):
         """从扫描的数据填充文件夹树（在主线程中执行）"""
-        # 添加子文件夹
         for subdir in folder_data.get('subdirs', []):
             subdir_item = QTreeWidgetItem(parent_item)
             subdir_item.setData(0, Qt.ItemDataRole.UserRole, subdir)
@@ -447,16 +453,11 @@ class FileListView(QTreeWidget):
             self.setItemWidget(subdir_item, 0, subdir_widget)
             self.folder_nodes[subdir] = subdir_item
             
-            # 递归处理子文件夹
             subdir_data = folder_data.get('subdir_data', {}).get(subdir)
             if subdir_data:
                 self._populate_folder_tree_from_data(subdir_item, subdir, subdir_data)
-            
-            # 更新子文件夹的文件数量
-            file_count = self._count_files_in_tree(subdir_item)
-            subdir_widget.update_file_count(file_count)
+                subdir_widget.update_file_count(self._count_files_in_data(subdir_data))
         
-        # 添加文件
         for file_path in folder_data.get('files', []):
             file_item = QTreeWidgetItem(parent_item)
             file_item.setData(0, Qt.ItemDataRole.UserRole, file_path)
@@ -466,9 +467,6 @@ class FileListView(QTreeWidget):
             
             parent_item.addChild(file_item)
             self.setItemWidget(file_item, 0, file_widget)
-        
-        # 触发重绘
-        self.viewport().update()
     
     def add_files_from_tree(self, folder_tree: dict):
         """
@@ -494,9 +492,12 @@ class FileListView(QTreeWidget):
         # 按自然排序
         root_folders.sort(key=natural_sort_key)
         
-        # 为每个根文件夹创建树
-        for root_folder in root_folders:
-            self._create_folder_node_from_tree(root_folder, folder_tree, None)
+        self.setUpdatesEnabled(False)
+        try:
+            for root_folder in root_folders:
+                self._create_folder_node_from_tree(root_folder, folder_tree, None)
+        finally:
+            self.setUpdatesEnabled(True)
     
     def _create_folder_node_from_tree(self, folder_path: str, folder_tree: dict, parent_item: QTreeWidgetItem = None):
         """从树结构递归创建文件夹节点"""
@@ -532,9 +533,18 @@ class FileListView(QTreeWidget):
         for subfolder in subfolders:
             self._create_folder_node_from_tree(subfolder, folder_tree, folder_item)
         
-        # 更新文件数量
-        file_count = self._count_files_in_tree(folder_item)
+        file_count = self._count_files_in_tree_data(folder_path, folder_tree)
         folder_widget.update_file_count(file_count)
+    
+    def _count_files_in_tree_data(self, folder_path: str, folder_tree: dict) -> int:
+        """从folder_tree数据直接计算文件数（避免遍历UI树和I/O调用）"""
+        if folder_path not in folder_tree:
+            return 0
+        folder_data = folder_tree[folder_path]
+        count = len(folder_data.get('files', []))
+        for subfolder in folder_data.get('subfolders', []):
+            count += self._count_files_in_tree_data(subfolder, folder_tree)
+        return count
     
     def add_files_with_tree(self, file_paths: List[str], folder_map: dict = None):
         """
@@ -601,11 +611,13 @@ class FileListView(QTreeWidget):
         folder_hierarchy = self._build_folder_hierarchy(all_folders)
         
         # 按层级创建文件夹树
-        self._create_folder_tree_with_files(folder_hierarchy, folder_groups)
-        
-        # 添加单独的文件
-        for file_path in single_files:
-            self._add_single_file(file_path)
+        self.setUpdatesEnabled(False)
+        try:
+            self._create_folder_tree_with_files(folder_hierarchy, folder_groups)
+            for file_path in single_files:
+                self._add_single_file(file_path)
+        finally:
+            self.setUpdatesEnabled(True)
     
     def _build_folder_hierarchy(self, folders: set) -> dict:
         """
@@ -728,76 +740,46 @@ class FileListView(QTreeWidget):
     def _add_folder_tree(self, folder_path: str):
         """添加文件夹及其完整的树形结构"""
         if folder_path in self.folder_nodes:
-            return  # 文件夹已存在
+            return
         
-        # 创建顶层文件夹节点
         folder_item = QTreeWidgetItem(self)
         folder_item.setData(0, Qt.ItemDataRole.UserRole, folder_path)
         
-        # 创建文件夹项的自定义控件
         folder_widget = FileItemWidget(folder_path, is_folder=True)
         folder_widget.remove_requested.connect(self.file_remove_requested.emit)
         
         self.addTopLevelItem(folder_item)
         self.setItemWidget(folder_item, 0, folder_widget)
-        
-        # 保存文件夹节点
         self.folder_nodes[folder_path] = folder_item
         
-        # 递归添加子文件夹和文件
-        self._populate_folder_tree(folder_item, folder_path)
+        self.setUpdatesEnabled(False)
+        try:
+            file_count = self._populate_folder_tree_counted(folder_item, folder_path)
+            folder_widget.update_file_count(file_count)
+        finally:
+            self.setUpdatesEnabled(True)
+    
+    def _populate_folder_tree_counted(self, parent_item: QTreeWidgetItem, folder_path: str) -> int:
+        """递归填充文件夹树并返回该文件夹下的文件总数（一次遍历，避免重复os.walk）"""
+        image_extensions = {'.png', '.jpg', '.jpeg', '.bmp', '.webp', '.avif', '.heic', '.heif'}
+        archive_extensions = {'.pdf', '.epub', '.cbz', '.cbr', '.zip'}
+        all_extensions = image_extensions | archive_extensions
+        total_count = 0
         
-        # 更新文件数量显示
-        file_count = self._count_files_recursive(folder_path)
-        folder_widget.update_file_count(file_count)
-    
-    def _count_files_recursive(self, folder_path: str) -> int:
-        """递归统计文件夹中的图片文件数量"""
-        if not os.path.isdir(folder_path):
-            return 0
         try:
-            image_extensions = {'.png', '.jpg', '.jpeg', '.bmp', '.webp', '.avif', '.heic', '.heif'}
-            archive_extensions = {'.pdf', '.epub', '.cbz', '.cbr', '.zip'}
-            all_extensions = image_extensions | archive_extensions
-            count = 0
-            for root, dirs, files in os.walk(folder_path):
-                # 忽略 manga_translator_work 目录
-                if 'manga_translator_work' in dirs:
-                    dirs.remove('manga_translator_work')
-                    
-                for filename in files:
-                    if os.path.splitext(filename)[1].lower() in all_extensions:
-                        count += 1
-            return count
-        except Exception:
-            return 0
-    
-    def _populate_folder_tree(self, parent_item: QTreeWidgetItem, folder_path: str):
-        """递归填充文件夹树形结构"""
-        try:
-            image_extensions = {'.png', '.jpg', '.jpeg', '.bmp', '.webp', '.avif', '.heic', '.heif'}
-            archive_extensions = {'.pdf', '.epub', '.cbz', '.cbr', '.zip'}
-            all_extensions = image_extensions | archive_extensions
-            
-            # 获取当前文件夹的直接子项
             items = os.listdir(folder_path)
-            
-            # 分离文件夹和文件
             subdirs = []
             files = []
             
             for item in items:
-                # 忽略 manga_translator_work 目录
                 if item == 'manga_translator_work':
                     continue
-                    
                 item_path = os.path.join(folder_path, item)
                 if os.path.isdir(item_path):
                     subdirs.append(item_path)
                 elif os.path.splitext(item)[1].lower() in all_extensions:
                     files.append(item_path)
             
-            # 先添加子文件夹
             for subdir in sorted(subdirs, key=natural_sort_key):
                 subdir_item = QTreeWidgetItem(parent_item)
                 subdir_item.setData(0, Qt.ItemDataRole.UserRole, subdir)
@@ -807,18 +789,12 @@ class FileListView(QTreeWidget):
                 
                 parent_item.addChild(subdir_item)
                 self.setItemWidget(subdir_item, 0, subdir_widget)
-                
-                # 保存子文件夹节点
                 self.folder_nodes[subdir] = subdir_item
                 
-                # 递归处理子文件夹
-                self._populate_folder_tree(subdir_item, subdir)
-                
-                # 更新子文件夹的文件数量显示
-                file_count = self._count_files_recursive(subdir)
-                subdir_widget.update_file_count(file_count)
+                subdir_count = self._populate_folder_tree_counted(subdir_item, subdir)
+                subdir_widget.update_file_count(subdir_count)
+                total_count += subdir_count
             
-            # 再添加文件
             for file_path in sorted(files, key=natural_sort_key):
                 file_item = QTreeWidgetItem(parent_item)
                 file_item.setData(0, Qt.ItemDataRole.UserRole, file_path)
@@ -828,33 +804,28 @@ class FileListView(QTreeWidget):
                 
                 parent_item.addChild(file_item)
                 self.setItemWidget(file_item, 0, file_widget)
-                
+            
+            total_count += len(files)
         except Exception as e:
             print(f"Error populating folder tree for {folder_path}: {e}")
         
-        # 触发重绘以隐藏占位提示
-        self.viewport().update()
+        return total_count
 
     def _add_folder(self, folder_path: str):
         """添加文件夹及其包含的所有图片文件"""
         if folder_path in self.folder_nodes:
-            return  # 文件夹已存在
+            return
         
-        # 创建文件夹节点
         folder_item = QTreeWidgetItem(self)
         folder_item.setData(0, Qt.ItemDataRole.UserRole, folder_path)
         
-        # 创建文件夹项的自定义控件
         folder_widget = FileItemWidget(folder_path, is_folder=True)
         folder_widget.remove_requested.connect(self.file_remove_requested.emit)
         
         self.addTopLevelItem(folder_item)
         self.setItemWidget(folder_item, 0, folder_widget)
-        
-        # 保存文件夹节点
         self.folder_nodes[folder_path] = folder_item
         
-        # 添加文件夹中的文件
         try:
             image_extensions = {'.png', '.jpg', '.jpeg', '.bmp', '.webp', '.avif', '.heic', '.heif'}
             archive_extensions = {'.pdf', '.epub', '.cbz', '.cbr', '.zip'}
@@ -865,10 +836,13 @@ class FileListView(QTreeWidget):
                 if os.path.splitext(f)[1].lower() in all_extensions
             ]
             
-            for file_path in sorted(files, key=natural_sort_key):
-                self._add_file_to_folder(file_path, folder_item)
+            self.setUpdatesEnabled(False)
+            try:
+                for file_path in sorted(files, key=natural_sort_key):
+                    self._add_file_to_folder(file_path, folder_item)
+            finally:
+                self.setUpdatesEnabled(True)
             
-            # 更新文件夹显示的文件数
             self._update_folder_count(folder_item)
         except Exception as e:
             print(f"Error loading files from folder {folder_path}: {e}")
