@@ -172,6 +172,9 @@ class AppSection(BaseModel):
     unload_models_after_translation: bool = False  # 翻译完成后卸载模型（释放内存更彻底，但下次使用需要重新加载）
     saved_colors: Optional[List[str]] = None  # 保存的常用颜色列表
     saved_style_presets: Optional[Dict[str, Dict[str, Any]]] = None  # 编辑器保存的样式组合
+    archive_result_to_source: bool = False  # 翻译完成后将结果归档到源文件路径
+    archive_result_prefix: str = "[#trans]"  # 归档文件名前缀
+    delete_result_after_archive: bool = False  # 归档后删除结果目录
 
     @model_validator(mode="before")
     @classmethod

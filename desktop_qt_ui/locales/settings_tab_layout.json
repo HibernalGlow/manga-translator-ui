@@ -28,7 +28,10 @@
         "cli.export_editable_psd",
         "cli.psd_font",
         "cli.psd_script_only",
-        "app.unload_models_after_translation"
+        "app.unload_models_after_translation",
+        "app.archive_result_to_source",
+        "app.archive_result_prefix",
+        "app.delete_result_after_archive"
       ]
     },
     {

@@ -2789,6 +2789,42 @@ class TranslationWorker(QObject):
         except Exception as e:
             self.logger.warning(f"Failed to copy original image on failure: {e}")
 
+    def _archive_translated_results(self) -> None:
+        """
+        归档翻译结果到源文件路径
+        将翻译完成的文件/压缩包放回源文件路径，默认命名加上前缀 [#trans]
+        """
+        try:
+            from desktop_qt_ui.utils.archive_result import batch_archive_results
+            
+            prefix = self.config_dict.get('app', {}).get('archive_result_prefix', '[#trans]')
+            delete_result = self.config_dict.get('app', {}).get('delete_result_after_archive', False)
+            
+            self._log_info(f"📦 开始归档翻译结果到源文件路径...")
+            self._log_info(f"  • 前缀: {prefix}")
+            self._log_info(f"  • 删除结果目录: {'是' if delete_result else '否'}")
+            
+            success_count, failed_count, output_files = batch_archive_results(
+                root_dir=self.output_folder,
+                prefix=prefix,
+                delete_result=delete_result
+            )
+            
+            if success_count > 0:
+                self._log_info(f"✅ 成功归档 {success_count} 个翻译结果")
+                for output_file in output_files:
+                    self._log_info(f"  📁 {output_file}")
+            
+            if failed_count > 0:
+                self._log_warning(f"⚠️ 归档失败 {failed_count} 个翻译结果")
+            
+            if success_count == 0 and failed_count == 0:
+                self._log_info("ℹ️ 未找到需要归档的翻译结果")
+                
+        except Exception as e:
+            self.logger.error(f"归档翻译结果失败: {e}")
+            self._log_warning(f"❌ 归档翻译结果失败: {e}")
+
     def _calculate_output_path(self, image_path: str, save_info: dict) -> str:
         """
         计算输出文件的完整路径（用于预检查文件是否存在）
@@ -3843,6 +3879,10 @@ class TranslationWorker(QObject):
 
                 self._log_info(f"✅ 顺序翻译完成：成功 {success_count}/{total_files} 张")
                 self._log_info(f"💾 文件已保存到：{self.output_folder}")
+            
+            # 归档翻译结果到源文件路径
+            if self.config_dict.get('app', {}).get('archive_result_to_source', False):
+                self._archive_translated_results()
             
             self.finished.emit(results)
 
