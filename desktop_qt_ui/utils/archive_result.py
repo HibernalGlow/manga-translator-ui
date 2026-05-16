@@ -141,17 +141,17 @@ def read_archive_source(result_dir: str) -> Optional[str]:
     return None
 
 
-def read_translation_map(original_images_dir: str) -> Optional[dict]:
+def read_translation_map(result_dir: str) -> Optional[dict]:
     """
     读取 translation_map.json
     
     Args:
-        original_images_dir: original_images 目录路径
+        result_dir: 翻译结果目录路径
         
     Returns:
         翻译映射字典，如果不存在则返回 None
     """
-    map_path = os.path.join(original_images_dir, TRANSLATION_MAP_FILENAME)
+    map_path = os.path.join(result_dir, TRANSLATION_MAP_FILENAME)
     
     if not os.path.exists(map_path):
         return None
@@ -203,6 +203,94 @@ def complete_result_directory(result_dir: str) -> Tuple[int, int]:
         logger.info("未找到 original_images 目录，跳过补全")
         return 0, 0
     
+    # 尝试使用 translation_map.json
+    translation_map = read_translation_map(result_dir)
+    
+    if translation_map:
+        # 使用 translation_map 确定缺失的文件
+        return _complete_using_translation_map(
+            result_dir, 
+            original_images_dir, 
+            translation_map
+        )
+    else:
+        # 使用文件名匹配
+        return _complete_using_filename_matching(result_dir, original_images_dir)
+
+
+def _complete_using_translation_map(
+    result_dir: str,
+    original_images_dir: str,
+    translation_map: dict
+) -> Tuple[int, int]:
+    """
+    使用 translation_map.json 补全缺失文件
+    
+    Args:
+        result_dir: 翻译结果目录路径
+        original_images_dir: original_images 目录路径
+        translation_map: 翻译映射字典
+        
+    Returns:
+        (复制的文件数量, 缺失的文件数量)
+    """
+    # 获取所有原图文件
+    original_files = get_image_files(original_images_dir)
+    
+    # 获取已翻译的文件
+    result_files = get_image_files(result_dir)
+    result_set = set(result_files)
+    
+    # 从 translation_map 中获取已翻译的原图
+    translated_originals = set()
+    for translated_path in translation_map.keys():
+        translated_name = os.path.basename(translated_path)
+        if translated_name in result_set:
+            # 这个翻译文件存在，记录其对应的原图
+            source_path = translation_map[translated_path]
+            source_name = os.path.basename(source_path)
+            translated_originals.add(source_name)
+    
+    # 找出缺失的原图
+    missing_files = set(original_files) - translated_originals
+    
+    if not missing_files:
+        logger.info("result 目录已完整，无需补全")
+        return 0, 0
+    
+    copied_count = 0
+    for filename in missing_files:
+        src_file = os.path.join(original_images_dir, filename)
+        dst_file = os.path.join(result_dir, filename)
+        
+        # 如果目标文件已存在，跳过
+        if os.path.exists(dst_file):
+            continue
+        
+        try:
+            shutil.copy2(src_file, dst_file)
+            copied_count += 1
+            logger.info(f"已补全缺失文件: {filename}")
+        except Exception as e:
+            logger.warning(f"复制文件失败 {filename}: {e}")
+    
+    return copied_count, len(missing_files)
+
+
+def _complete_using_filename_matching(
+    result_dir: str,
+    original_images_dir: str
+) -> Tuple[int, int]:
+    """
+    使用文件名匹配补全缺失文件
+    
+    Args:
+        result_dir: 翻译结果目录路径
+        original_images_dir: original_images 目录路径
+        
+    Returns:
+        (复制的文件数量, 缺失的文件数量)
+    """
     original_files = get_image_files(original_images_dir)
     result_files = get_image_files(result_dir)
     

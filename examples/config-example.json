@@ -129,7 +129,7 @@
     "template": false,
     "save_quality": 75,
     "batch_size": 1,
-    "batch_concurrent": true,
+    "batch_concurrent": false,
     "generate_and_export": false,
     "colorize_only": false,
     "upscale_only": false,

@@ -682,3 +682,33 @@ def trigger_add_files(self):
         self.controller.add_files(file_paths)
         new_dir = os.path.dirname(file_paths[0])
         self.controller.set_last_open_dir(new_dir)
+
+
+def trigger_add_files_by_path(self):
+    """触发文件路径输入对话框。"""
+    from widgets.file_path_input_dialog import FilePathInputDialog
+    
+    dialog = FilePathInputDialog(self, self._t)
+    
+    if dialog.exec() == dialog.DialogCode.Accepted:
+        file_paths = dialog.get_file_paths()
+        if file_paths:
+            self.controller.add_files(file_paths)
+            # 更新最后打开目录
+            if file_paths:
+                new_dir = os.path.dirname(file_paths[0])
+                self.controller.set_last_open_dir(new_dir)
+
+
+def trigger_add_files_from_clipboard(self):
+    """从剪贴板添加文件。"""
+    from widgets.file_path_input_dialog import add_files_from_clipboard
+    
+    file_paths = add_files_from_clipboard(self, self._t)
+    
+    if file_paths:
+        self.controller.add_files(file_paths)
+        # 更新最后打开目录
+        if file_paths:
+            new_dir = os.path.dirname(file_paths[0])
+            self.controller.set_last_open_dir(new_dir)
