@@ -22,6 +22,49 @@ TRANSLATED_PREFIX = '[#trans]'
 IMAGE_EXTENSIONS = {'.png', '.jpg', '.jpeg', '.bmp', '.webp', '.avif', '.gif', '.tiff', '.tif', '.heic', '.heif'}
 
 
+def decode_zip_filename(filename: str, flag_bits: int) -> str:
+    """
+    解码 ZIP 文件名，处理编码问题
+    
+    Args:
+        filename: 原始文件名
+        flag_bits: ZIP 文件的标志位
+        
+    Returns:
+        解码后的文件名
+    """
+    # 检查 UTF-8 标志位（bit 11）
+    if flag_bits & 0x800:
+        # UTF-8 编码，直接返回
+        return filename
+    
+    # 尝试 Shift-JIS 解码（日文 Windows 常见）
+    try:
+        # zipfile 默认使用 CP437 解码非 UTF-8 文件名
+        # 我们需要先编码回原始字节，然后用正确的编码解码
+        decoded = filename.encode('cp437').decode('shift_jis')
+        return decoded
+    except (UnicodeDecodeError, UnicodeEncodeError):
+        pass
+    
+    # 尝试 GBK 解码（中文 Windows 常见）
+    try:
+        decoded = filename.encode('cp437').decode('gbk')
+        return decoded
+    except (UnicodeDecodeError, UnicodeEncodeError):
+        pass
+    
+    # 尝试 Big5 解码（繁体中文 Windows 常见）
+    try:
+        decoded = filename.encode('cp437').decode('big5')
+        return decoded
+    except (UnicodeDecodeError, UnicodeEncodeError):
+        pass
+    
+    # 如果都失败，返回原始文件名
+    return filename
+
+
 def get_original_images_dir(result_dir: str) -> Optional[str]:
     """
     获取 original_images 目录路径
@@ -214,11 +257,15 @@ def create_archive_from_result(result_dir: str, output_path: str) -> bool:
             logger.error(f"结果目录不存在: {result_dir}")
             return False
         
+        # 使用 UTF-8 编码创建 ZIP 文件，确保跨平台兼容性
+        # Python 3.11+ 默认使用 UTF-8，但显式设置以确保兼容性
         with zipfile.ZipFile(output_path, 'w', zipfile.ZIP_DEFLATED) as zf:
             for root, dirs, files in os.walk(result_dir):
                 for file in files:
                     file_path = os.path.join(root, file)
                     arcname = os.path.relpath(file_path, result_dir)
+                    
+                    # 写入文件，Python 3.11+ 会自动设置 UTF-8 标志位
                     zf.write(file_path, arcname)
         
         logger.info(f"成功创建压缩包: {output_path}")

@@ -12,7 +12,7 @@
     "saved_style_presets": null,
     "archive_result_to_source": true,
     "archive_result_prefix": "[#trans]",
-    "delete_result_after_archive": false
+    "delete_result_after_archive": true
   },
   "filter_text_enabled": false,
   "kernel_size": 3,
